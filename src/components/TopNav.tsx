@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useViewStore } from '../stores/useViewStore';
 import { useUIStore } from '../stores/useUIStore';
+import BatchImportModal from './BatchImportModal';
 
 export default function TopNav() {
   const views = useViewStore((s) => s.views);
@@ -13,6 +14,7 @@ export default function TopNav() {
 
   const [showNewViewInput, setShowNewViewInput] = useState(false);
   const [newViewName, setNewViewName] = useState('');
+  const [showBatchImport, setShowBatchImport] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -38,6 +40,7 @@ export default function TopNav() {
   };
 
   return (
+    <>
     <header className="h-14 bg-white border-b border-gray-200 flex items-center shrink-0 z-30">
       {/* 移动端汉堡菜单 */}
       <button
@@ -107,6 +110,18 @@ export default function TopNav() {
 
       {/* 搜索框 + 移动端添加按钮 */}
       <div className="shrink-0 flex items-center gap-2 px-3 md:px-6">
+        {/* AI 批量导入按钮 */}
+        <button
+          onClick={() => setShowBatchImport(true)}
+          className="shrink-0 hidden md:flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 rounded-lg transition-all duration-200 shadow-sm"
+          title="AI 批量导入"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+          </svg>
+          AI 导入
+        </button>
+
         {/* 移动端快捷添加按钮 */}
         <button
           onClick={() => {
@@ -146,5 +161,10 @@ export default function TopNav() {
         </div>
       </div>
     </header>
+      {/* AI 批量导入弹窗 */}
+      {showBatchImport && (
+        <BatchImportModal onClose={() => setShowBatchImport(false)} />
+      )}
+    </>
   );
 }

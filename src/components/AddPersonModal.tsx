@@ -76,6 +76,7 @@ export default function AddPersonModal({ onClose }: AddPersonModalProps) {
         avatar,
         contact: Object.values(contact).some(Boolean) ? contact : undefined,
         viewIds: selectedViewIds,
+        circleIds: [],
         position: {
           x: 150 + Math.random() * 300,
           y: 100 + Math.random() * 200,

@@ -20,6 +20,7 @@ export interface Person {
   notes?: string;
   contact?: PersonContact;
   viewIds: string[];       // Which views this person belongs to
+  circleIds: string[];     // Which circles this person belongs to
   position?: { x: number; y: number }; // Position in global graph
   createdAt: string;
   updatedAt: string;
@@ -54,8 +55,66 @@ export interface View {
   type: ViewType;
   icon?: string;
   personIds: string[];
+  lastActiveAt: string;   // Last activity time for sorting
+  sortOrder: number;       // Manual sort order
   createdAt: string;
   updatedAt: string;
+}
+
+// --- Circle (圈子) ---
+export interface Circle {
+  id: string;
+  name: string;
+  color: string;           // Theme color (hex)
+  personIds: string[];     // Members
+  notes?: string;
+  position?: { x: number; y: number };  // Bounding box position
+  size?: { width: number; height: number };
+  createdAt: string;
+  updatedAt: string;
+}
+
+// --- AI Provider Configuration ---
+export type AIProviderType = 'openai' | 'anthropic' | 'custom';
+
+export interface AIProviderConfig {
+  id: string;
+  type: AIProviderType;
+  name: string;
+  apiKeyEncrypted: string;  // Web Crypto encrypted (Base64)
+  apiKeyIV: string;          // Encryption IV (Base64)
+  baseURL?: string;          // Custom API endpoint
+  model?: string;            // Model name
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// --- AI Batch Import ---
+export interface ParsedPerson {
+  name: string;
+  city?: string;
+  title?: string;
+  company?: string;
+  tags?: string[];
+  notes?: string;
+}
+
+export interface ParsedRelation {
+  fromName: string;
+  toName: string;
+  type: string;
+}
+
+export interface BatchImportResult {
+  persons: ParsedPerson[];
+  relations: ParsedRelation[];
+}
+
+// --- App State ---
+export interface AppState {
+  key: string;
+  value: unknown;
 }
 
 export type PrivacyMode = 'full' | 'simple' | 'private' | 'custom';
@@ -74,6 +133,8 @@ export interface BackupData {
   persons: Person[];
   relations: Relation[];
   views: View[];
+  circles: Circle[];
+  aiProviders: AIProviderConfig[];
 }
 
 // Predefined relation types
@@ -88,8 +149,22 @@ export const PRESET_RELATION_TYPES: RelationType[] = [
   '想维护',
 ];
 
+// Circle color palette
+export const CIRCLE_COLORS = [
+  '#6366f1', // indigo
+  '#8b5cf6', // violet
+  '#ec4899', // pink
+  '#f43f5e', // rose
+  '#f97316', // orange
+  '#eab308', // yellow
+  '#22c55e', // green
+  '#14b8a6', // teal
+  '#06b6d4', // cyan
+  '#3b82f6', // blue
+];
+
 // Person field labels for display
-export const PERSON_FIELD_LABELS: Record<keyof Person, string> = {
+export const PERSON_FIELD_LABELS: Record<string, string> = {
   id: 'ID',
   name: '名字',
   avatar: '头像',
@@ -100,6 +175,7 @@ export const PERSON_FIELD_LABELS: Record<keyof Person, string> = {
   notes: '备注',
   contact: '联系方式',
   viewIds: '所属视图',
+  circleIds: '所属圈子',
   position: '位置',
   createdAt: '创建时间',
   updatedAt: '更新时间',

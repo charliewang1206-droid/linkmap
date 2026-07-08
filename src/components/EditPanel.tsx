@@ -5,6 +5,8 @@ import { useViewStore } from '../stores/useViewStore';
 import { useUIStore } from '../stores/useUIStore';
 import { generateAvatarDataUrl, compressImage } from '../utils/avatar';
 import { type Person, type RelationType } from '../types';
+import AddRelationModal from './AddRelationModal';
+import CircleManager from './CircleManager';
 
 export default function EditPanel() {
   const selectedPersonId = useUIStore((s) => s.selectedPersonId);
@@ -28,6 +30,7 @@ export default function EditPanel() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [editingRelationId, setEditingRelationId] = useState<string | null>(null);
   const [editingRelationType, setEditingRelationType] = useState('');
+  const [showAddRelation, setShowAddRelation] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -122,6 +125,8 @@ export default function EditPanel() {
     } else {
       updateField('viewIds', [...currentViewIds, viewId]);
       addPersonToView(viewId, selectedPersonId);
+      // Update view's lastActiveAt for sorting
+      useViewStore.getState().touchView(viewId);
     }
   };
 
@@ -136,6 +141,7 @@ export default function EditPanel() {
   };
 
   return (
+    <>
     <div className="hidden md:flex w-[320px] h-full bg-white border-l border-gray-200 flex-col shrink-0 overflow-hidden">
       {/* 头部 */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
@@ -373,9 +379,23 @@ export default function EditPanel() {
           </div>
         </div>
 
+        {/* 所属圈子 */}
+        <CircleManager personId={selectedPersonId} />
+
         {/* 关系列表 */}
         <div>
-          <label className="block text-xs text-gray-400 mb-2">关系列表</label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-xs text-gray-400">关系列表</label>
+            <button
+              onClick={() => setShowAddRelation(true)}
+              className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors"
+            >
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M8 2a.75.75 0 01.75.75v4.5h4.5a.75.75 0 010 1.5h-4.5v4.5a.75.75 0 01-1.5 0v-4.5h-4.5a.75.75 0 010-1.5h4.5v-4.5A.75.75 0 018 2z" />
+              </svg>
+              添加关系
+            </button>
+          </div>
           {personRelations.length === 0 ? (
             <p className="text-xs text-gray-400 py-2">暂无关系，在画布中拖拽连线创建</p>
           ) : (
@@ -481,5 +501,13 @@ export default function EditPanel() {
         )}
       </div>
     </div>
+    {/* 添加关系弹窗 */}
+    {showAddRelation && (
+      <AddRelationModal
+        sourcePersonId={selectedPersonId}
+        onClose={() => setShowAddRelation(false)}
+      />
+    )}
+    </>
   );
 }

@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { generateAvatarDataUrl } from '../utils/avatar';
 import type { Person } from '../types';
@@ -10,15 +10,29 @@ type PersonNodeData = {
   focusMode: boolean;
 };
 
+const HANDLE_POSITIONS = [
+  { type: 'source' as const, pos: Position.Top, id: 'source-top' },
+  { type: 'source' as const, pos: Position.Bottom, id: 'source-bottom' },
+  { type: 'source' as const, pos: Position.Left, id: 'source-left' },
+  { type: 'source' as const, pos: Position.Right, id: 'source-right' },
+  { type: 'target' as const, pos: Position.Top, id: 'target-top' },
+  { type: 'target' as const, pos: Position.Bottom, id: 'target-bottom' },
+  { type: 'target' as const, pos: Position.Left, id: 'target-left' },
+  { type: 'target' as const, pos: Position.Right, id: 'target-right' },
+];
+
 function PersonNode({ data }: NodeProps) {
   const { person, isSelected, isFocused, focusMode } = data as unknown as PersonNodeData;
+  const [isHovered, setIsHovered] = useState(false);
 
   const opacity = focusMode && !isFocused ? 0.15 : 1;
 
   return (
     <div
-      className="flex flex-col items-center"
+      className="flex flex-col items-center group"
       style={{ opacity, transition: 'opacity 0.3s ease' }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       {/* 头像 */}
       <div
@@ -54,17 +68,31 @@ function PersonNode({ data }: NodeProps) {
         {person.name}
       </p>
 
-      {/* 底部 Handle（隐藏，用于连线） */}
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        className="!w-0 !h-0 !border-0 !bg-transparent"
-      />
-      <Handle
-        type="target"
-        position={Position.Top}
-        className="!w-0 !h-0 !border-0 !bg-transparent"
-      />
+      {/* 四向 Handle - hover 或选中时可见 */}
+      {HANDLE_POSITIONS.map(({ type, pos, id }) => {
+        const isSource = type === 'source';
+        return (
+          <Handle
+            key={id}
+            type={type}
+            position={pos}
+            id={id}
+            className={`
+              !w-2.5 !h-2.5 !border-2 !border-white
+              transition-all duration-200
+              ${isSource ? '!bg-blue-500 hover:!bg-blue-600' : '!bg-green-500 hover:!bg-green-600'}
+              ${isHovered || isSelected
+                ? 'opacity-100 scale-100'
+                : 'opacity-0 scale-50'}
+              hover:!w-3.5 hover:!h-3.5
+            `}
+            style={{
+              borderRadius: '50%',
+              boxShadow: '0 0 0 1px rgba(0,0,0,0.1)',
+            }}
+          />
+        );
+      })}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { db } from '../db';
-import type { BackupData, Person, Relation, View } from '../types';
+import type { BackupData, Person, Relation, View, Circle, AIProviderConfig } from '../types';
 import { now } from '../types';
 
 const BACKUP_VERSION = '1.0.0';
@@ -63,10 +63,12 @@ export function validateBackup(data: unknown): data is BackupData {
 }
 
 export async function exportBackup(): Promise<void> {
-  const [persons, relations, views] = await Promise.all([
+  const [persons, relations, views, circles, aiProviders] = await Promise.all([
     db.persons.toArray(),
     db.relations.toArray(),
     db.views.toArray(),
+    db.circles.toArray(),
+    db.aiProviders.toArray(),
   ]);
 
   const backup: BackupData = {
@@ -75,6 +77,8 @@ export async function exportBackup(): Promise<void> {
     persons,
     relations,
     views,
+    circles,
+    aiProviders,
   };
 
   const json = JSON.stringify(backup, null, 2);
@@ -92,7 +96,7 @@ export async function exportBackup(): Promise<void> {
 
 export async function importBackup(
   file: File
-): Promise<{ persons: Person[]; relations: Relation[]; views: View[] } | null> {
+): Promise<{ persons: Person[]; relations: Relation[]; views: View[]; circles: Circle[]; aiProviders: AIProviderConfig[] } | null> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
 
@@ -109,6 +113,8 @@ export async function importBackup(
           persons: data.persons,
           relations: data.relations,
           views: data.views,
+          circles: data.circles || [],
+          aiProviders: data.aiProviders || [],
         });
       } catch {
         reject(new Error('无法解析备份文件'));

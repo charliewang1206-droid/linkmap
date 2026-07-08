@@ -40,6 +40,11 @@ test.describe('人物管理 (Person CRUD)', () => {
     await page.goto(BASE_URL);
     // 等待应用加载 - h1 是 TopNav 中的 "LinkMap"
     await page.waitForSelector('h1:has-text("LinkMap")', { timeout: 10000 });
+    // 如果首次启动出现 AI 配置引导弹窗，点击跳过
+    const skipButton = page.locator('button:has-text("跳过，稍后配置")');
+    if (await skipButton.count() > 0) {
+      await skipButton.click();
+    }
   });
 
   test('应该显示空状态页面', async ({ page }) => {
@@ -105,6 +110,11 @@ test.describe('人物编辑和删除', () => {
   async function setupWithPerson(page: Page) {
     await page.goto(BASE_URL);
     await page.waitForSelector('h1:has-text("LinkMap")', { timeout: 10000 });
+    // 跳过 AI 配置引导弹窗（如果存在）
+    const skipButton = page.locator('button:has-text("跳过，稍后配置")');
+    if (await skipButton.count() > 0) {
+      await skipButton.click();
+    }
     await openAddModal(page);
     await fillAndSubmitPerson(page, '张三');
   }
@@ -156,6 +166,10 @@ test.describe('视图系统 (Views)', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(BASE_URL);
     await page.waitForSelector('h1:has-text("LinkMap")', { timeout: 10000 });
+    const skipButton = page.locator('button:has-text("跳过，稍后配置")');
+    if (await skipButton.count() > 0) {
+      await skipButton.click();
+    }
   });
 
   test('应该显示四个默认视图', async ({ page }) => {
@@ -190,6 +204,11 @@ test.describe('搜索功能', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(BASE_URL);
     await page.waitForSelector('h1:has-text("LinkMap")', { timeout: 10000 });
+    // 跳过 AI 配置引导弹窗（如果存在）
+    const skipButton = page.locator('button:has-text("跳过，稍后配置")');
+    if (await skipButton.count() > 0) {
+      await skipButton.click();
+    }
     // 添加多个人物
     for (const name of ['张三', '李四', '王五']) {
       await openAddModal(page);
@@ -224,6 +243,10 @@ test.describe('侧边栏筛选', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(BASE_URL);
     await page.waitForSelector('h1:has-text("LinkMap")', { timeout: 10000 });
+    const skipButton = page.locator('button:has-text("跳过，稍后配置")');
+    if (await skipButton.count() > 0) {
+      await skipButton.click();
+    }
   });
 
   test('筛选按钮应该可见', async ({ page }) => {
@@ -250,6 +273,11 @@ test.describe('移动端响应式', () => {
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto(BASE_URL);
     await page.waitForSelector('h1:has-text("LinkMap")', { timeout: 10000 });
+    // 跳过 AI 配置引导弹窗（如果存在）
+    const skipButton = page.locator('button:has-text("跳过，稍后配置")');
+    if (await skipButton.count() > 0) {
+      await skipButton.click();
+    }
     // 移动端应该能看到 Logo
     await expect(page.locator('h1:has-text("LinkMap")')).toBeVisible();
   });

@@ -17,12 +17,15 @@ import { usePersonStore } from '../stores/usePersonStore';
 import { useRelationStore } from '../stores/useRelationStore';
 import { useUIStore } from '../stores/useUIStore';
 import { useViewStore } from '../stores/useViewStore';
+import { useCircleStore } from '../stores/useCircleStore';
 import { PRESET_RELATION_TYPES } from '../types';
+import { dagreLayout } from '../utils/layout';
 import PersonNode from './PersonNode';
+import CircleNode from './CircleNode';
 import EmptyState from './EmptyState';
 import AddPersonModal from './AddPersonModal';
 
-const nodeTypes = { personNode: PersonNode };
+const nodeTypes = { personNode: PersonNode, circleNode: CircleNode };
 
 export default function GraphCanvas() {
   const persons = usePersonStore((s) => s.persons);
@@ -34,6 +37,7 @@ export default function GraphCanvas() {
   const focusedPersonId = useUIStore((s) => s.focusedPersonId);
   const setFocusedPerson = useUIStore((s) => s.setFocusedPerson);
   const currentViewId = useViewStore((s) => s.currentViewId);
+  const circles = useCircleStore((s) => s.circles);
 
   const [showAddModal, setShowAddModal] = useState(false);
 
@@ -71,22 +75,47 @@ export default function GraphCanvas() {
     [relations, viewPersonIds]
   );
 
-  // 构建 ReactFlow nodes
-  const initialNodes: Node[] = useMemo(
-    () =>
-      viewPersons.map((person) => ({
-        id: person.id,
-        type: 'personNode',
-        position: person.position || { x: Math.random() * 400, y: Math.random() * 300 },
-        data: {
-          person,
-          isSelected: person.id === selectedPersonId,
-          isFocused: focusedPersonId ? person.id === focusedPersonId : false,
-          focusMode: !!focusedPersonId,
-        },
-      })),
-    [viewPersons, selectedPersonId, focusedPersonId]
-  );
+  // 构建 ReactFlow nodes (人物节点 + 圈子节点)
+  const initialNodes: Node[] = useMemo(() => {
+    const personNodes: Node[] = viewPersons.map((person) => ({
+      id: person.id,
+      type: 'personNode',
+      position: person.position || { x: Math.random() * 400, y: Math.random() * 300 },
+      data: {
+        person,
+        isSelected: person.id === selectedPersonId,
+        isFocused: focusedPersonId ? person.id === focusedPersonId : false,
+        focusMode: !!focusedPersonId,
+      },
+    }));
+
+    // Add circle overlay nodes
+    const circleNodes: Node[] = circles
+      .filter((c) => c.personIds.some((pid) => viewPersonIds.has(pid)))
+      .map((circle) => {
+        const members = circle.personIds
+          .filter((pid) => viewPersonIds.has(pid))
+          .map((pid) => {
+            const personNode = personNodes.find((n) => n.id === pid);
+            return {
+              id: pid,
+              position: personNode?.position || { x: 0, y: 0 },
+            };
+          });
+
+        return {
+          id: `circle-${circle.id}`,
+          type: 'circleNode',
+          position: { x: 0, y: 0 },
+          data: { circle, members },
+          draggable: false,
+          selectable: false,
+          style: { zIndex: 0 },
+        };
+      });
+
+    return [...personNodes, ...circleNodes];
+  }, [viewPersons, viewPersonIds, selectedPersonId, focusedPersonId, circles]);
 
   // 构建 ReactFlow edges
   const initialEdges: Edge[] = useMemo(
@@ -189,23 +218,15 @@ export default function GraphCanvas() {
     [updatePerson]
   );
 
-  // 自动布局
+  // 自动布局 - dagre 层次化布局
   const handleAutoLayout = useCallback(() => {
-    const cols = Math.ceil(Math.sqrt(nodes.length));
-    const spacing = 150;
-    const updated = nodes.map((node, i) => ({
-      ...node,
-      position: {
-        x: (i % cols) * spacing + 50,
-        y: Math.floor(i / cols) * spacing + 50,
-      },
-    }));
+    const updated = dagreLayout(nodes, edges, circles, 'TB');
     setNodes(updated);
     // 持久化位置
     updated.forEach((node) => {
       updatePerson(node.id, { position: node.position });
     });
-  }, [nodes, setNodes, updatePerson]);
+  }, [nodes, edges, circles, setNodes, updatePerson]);
 
   // 添加人物
   const handleOpenAddModal = useCallback(() => {

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ReactFlow,
   Background,
@@ -36,6 +36,13 @@ export default function GraphCanvas() {
   const currentViewId = useViewStore((s) => s.currentViewId);
 
   const [showAddModal, setShowAddModal] = useState(false);
+
+  // 监听全局"添加人物"事件（来自 TopNav 移动端按钮）
+  useEffect(() => {
+    const handleOpenAddModal = () => setShowAddModal(true);
+    window.addEventListener('linkmap:openAddModal', handleOpenAddModal);
+    return () => window.removeEventListener('linkmap:openAddModal', handleOpenAddModal);
+  }, []);
 
   // 连接中关系类型选择弹窗
   const [pendingConnection, setPendingConnection] = useState<{
@@ -268,10 +275,10 @@ export default function GraphCanvas() {
         自动布局
       </button>
 
-      {/* 添加人物按钮 */}
+      {/* 添加人物按钮 - 更醒目的样式 */}
       <button
         onClick={handleOpenAddModal}
-        className="absolute top-3 right-24 z-10 px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg shadow-sm hover:bg-blue-700 transition-all duration-200 flex items-center gap-1"
+        className="absolute top-3 right-24 z-10 px-3.5 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 hover:shadow-lg active:scale-95 transition-all duration-200 flex items-center gap-1.5"
       >
         <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
           <path d="M8 2a.75.75 0 01.75.75v4.5h4.5a.75.75 0 010 1.5h-4.5v4.5a.75.75 0 01-1.5 0v-4.5h-4.5a.75.75 0 010-1.5h4.5v-4.5A.75.75 0 018 2z" />

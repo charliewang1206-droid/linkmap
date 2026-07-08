@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { usePersonStore } from '../stores/usePersonStore';
 import { useUIStore } from '../stores/useUIStore';
 import { useViewStore } from '../stores/useViewStore';
@@ -19,6 +19,13 @@ export default function Sidebar() {
   const [showTitleDropdown, setShowTitleDropdown] = useState(false);
   const [showTagDropdown, setShowTagDropdown] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+
+  // 监听全局"添加人物"事件（来自 TopNav 移动端按钮）
+  useEffect(() => {
+    const handleOpenAddModal = () => setShowAddModal(true);
+    window.addEventListener('linkmap:openAddModal', handleOpenAddModal);
+    return () => window.removeEventListener('linkmap:openAddModal', handleOpenAddModal);
+  }, []);
 
   // 从当前 View 的人物中提取动态筛选值
   const filteredPersons = useMemo(() => {

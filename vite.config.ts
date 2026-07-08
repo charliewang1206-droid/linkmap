@@ -10,7 +10,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icons/icon-192.png', 'icons/icon-512.png'],
+      includeAssets: ['icons/icon-192.png', 'icons/icon-512.png', 'favicon.svg'],
       manifest: {
         name: 'LinkMap - 私人人脉地图',
         short_name: 'LinkMap',
@@ -20,6 +20,7 @@ export default defineConfig({
         display: 'standalone',
         orientation: 'any',
         start_url: '/linkmap/',
+        scope: '/linkmap/',
         icons: [
           {
             src: '/linkmap/icons/icon-192.png',
@@ -29,12 +30,16 @@ export default defineConfig({
           {
             src: '/linkmap/icons/icon-512.png',
             sizes: '512x512',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any maskable'
           }
         ]
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
         runtimeCaching: [
           {
             urlPattern: /^https?.*/,

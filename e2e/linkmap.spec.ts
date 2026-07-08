@@ -7,9 +7,17 @@ const BASE_URL = 'http://localhost:4173/linkmap/';
  * 覆盖所有核心功能：添加人物、编辑、删除、关系连线、视图切换、搜索、导出、备份
  */
 
-/** 辅助函数：打开添加人物弹窗并等待加载 */
+/** 辅助函数：打开添加人物弹窗并等待加载
+ * 兼容桌面/移动端布局：桌面端为画布上的“添加人物”按钮，
+ * 移动端空状态为“添加第一个人物”，移动端有数据时为画布按钮或顶栏图标按钮。
+ * 因此只点击当前“可见”的添加触发按钮，避免命中被响应式隐藏的元素。 */
 async function openAddModal(page: Page) {
-  await page.locator('button:has-text("添加人物")').first().click();
+  const trigger = page
+    .locator('button')
+    .filter({ hasText: /添加人物|添加第一个人物/ })
+    .filter({ visible: true })
+    .first();
+  await trigger.click();
   // 等待模态框出现 - 通过名字输入框来判断
   await page.waitForSelector('input[placeholder="请输入名字"]', { timeout: 5000 });
 }
@@ -48,10 +56,15 @@ test.describe('人物管理 (Person CRUD)', () => {
   });
 
   test('应该显示空状态页面', async ({ page }) => {
-    await expect(page.locator('text=暂无人物')).toBeVisible();
-    // 确认"添加人物"按钮存在
-    const addButton = page.locator('button:has-text("添加人物")');
-    await expect(addButton.first()).toBeVisible();
+    // 空状态标题在桌面/移动端都会渲染（暂无人物 文案位于侧边栏，移动端侧边栏默认收起，故改判标题）
+    await expect(page.locator('text=开始记录你的人脉网络')).toBeVisible();
+    // 确认存在一个可见的“添加”触发按钮（桌面/移动端布局不同）
+    const addTrigger = page
+      .locator('button')
+      .filter({ hasText: /添加人物|添加第一个人物/ })
+      .filter({ visible: true })
+      .first();
+    await expect(addTrigger).toBeVisible();
   });
 
   test('应该能通过弹窗添加第一个人物', async ({ page }) => {
@@ -61,8 +74,10 @@ test.describe('人物管理 (Person CRUD)', () => {
       title: '产品经理',
       company: '字节跳动',
     });
-    // 验证人物已显示在画布上或侧边栏
-    await expect(page.locator('text=张三').first()).toBeVisible({ timeout: 5000 });
+    // 验证人物节点已渲染（移动端节点标签可能隐藏，改判节点容器可见）
+    await expect(
+      page.locator('.react-flow__node').filter({ hasText: '张三' }).first()
+    ).toBeVisible({ timeout: 5000 });
   });
 
   test('应该能添加多个人物', async ({ page }) => {
@@ -78,10 +93,16 @@ test.describe('人物管理 (Person CRUD)', () => {
     await openAddModal(page);
     await fillAndSubmitPerson(page, '王五');
 
-    // 验证三个人物都显示（至少在侧边栏或画布上可见）
-    await expect(page.locator('text=张三').first()).toBeVisible({ timeout: 5000 });
-    await expect(page.locator('text=李四').first()).toBeVisible();
-    await expect(page.locator('text=王五').first()).toBeVisible();
+    // 验证三个人物节点都渲染（使用节点容器而非侧边栏文案）
+    await expect(
+      page.locator('.react-flow__node').filter({ hasText: '张三' }).first()
+    ).toBeVisible({ timeout: 5000 });
+    await expect(
+      page.locator('.react-flow__node').filter({ hasText: '李四' }).first()
+    ).toBeVisible();
+    await expect(
+      page.locator('.react-flow__node').filter({ hasText: '王五' }).first()
+    ).toBeVisible();
   });
 
   test('添加人物弹窗可以取消', async ({ page }) => {
@@ -119,7 +140,11 @@ test.describe('人物编辑和删除', () => {
     await fillAndSubmitPerson(page, '张三');
   }
 
-  test.beforeEach(async ({ page }) => setupWithPerson(page));
+  test.beforeEach(async ({ page }, testInfo) => {
+    // 编辑/删除面板（EditPanel）为桌面端专属（hidden md:flex），移动端无对应 UI，跳过移动端用例
+    test.skip(testInfo.project.name === 'mobile', '编辑/删除面板仅桌面端提供');
+    await setupWithPerson(page);
+  });
 
   test('点击人物节点应该打开编辑面板', async ({ page }) => {
     // 点击人物节点（在 ReactFlow 中）
@@ -201,7 +226,9 @@ test.describe('视图系统 (Views)', () => {
 });
 
 test.describe('搜索功能', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page }, testInfo) => {
+    // 搜索框仅在桌面端（TopNav）提供，移动端无搜索功能，跳过移动端用例
+    test.skip(testInfo.project.name === 'mobile', '搜索功能仅在桌面端提供');
     await page.goto(BASE_URL);
     await page.waitForSelector('h1:has-text("LinkMap")', { timeout: 10000 });
     // 跳过 AI 配置引导弹窗（如果存在）
@@ -240,7 +267,9 @@ test.describe('搜索功能', () => {
 });
 
 test.describe('侧边栏筛选', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page }, testInfo) => {
+    // 侧边栏（含城市/职位/标签筛选）在移动端默认收起（hidden md:block），跳过移动端用例
+    test.skip(testInfo.project.name === 'mobile', '侧边栏筛选仅桌面端提供');
     await page.goto(BASE_URL);
     await page.waitForSelector('h1:has-text("LinkMap")', { timeout: 10000 });
     const skipButton = page.locator('button:has-text("跳过，稍后配置")');

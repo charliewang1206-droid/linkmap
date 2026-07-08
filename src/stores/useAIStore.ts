@@ -7,7 +7,7 @@ interface AIState {
   providers: AIProviderConfig[];
   isLoading: boolean;
   loadProviders: () => Promise<void>;
-  addProvider: (data: { type: AIProviderType; name: string; apiKey: string; baseURL?: string; model?: string; isDefault?: boolean }) => Promise<AIProviderConfig>;
+  addProvider: (data: { type: AIProviderType; name: string; apiKey?: string; baseURL?: string; model?: string; isDefault?: boolean }) => Promise<AIProviderConfig>;
   updateProvider: (id: string, data: Partial<AIProviderConfig>) => Promise<void>;
   deleteProvider: (id: string) => Promise<void>;
   getDefaultProvider: () => AIProviderConfig | undefined;
@@ -29,7 +29,12 @@ export const useAIStore = create<AIState>((set, get) => ({
   },
 
   addProvider: async (data) => {
-    const { encrypted, iv } = await encryptAPIKey(data.apiKey);
+    // Local & Ollama providers need no API key — store empty ciphertext.
+    const needsKey = data.type !== 'local' && data.type !== 'ollama';
+    const { encrypted, iv } = needsKey && data.apiKey
+      ? await encryptAPIKey(data.apiKey)
+      : { encrypted: '', iv: '' };
+
     const provider: AIProviderConfig = {
       id: generateId(),
       type: data.type,

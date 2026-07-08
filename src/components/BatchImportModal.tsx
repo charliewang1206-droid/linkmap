@@ -4,6 +4,7 @@ import { usePersonStore } from '../stores/usePersonStore';
 import { useRelationStore } from '../stores/useRelationStore';
 import { useViewStore } from '../stores/useViewStore';
 import { parseWithAI } from '../utils/ai-parser';
+import { onLocalModelProgress } from '../utils/webllm';
 import type { BatchImportResult, ParsedPerson, ParsedRelation } from '../types';
 
 interface BatchImportModalProps {
@@ -23,8 +24,10 @@ export default function BatchImportModal({ onClose }: BatchImportModalProps) {
   const [error, setError] = useState('');
   const [editablePersons, setEditablePersons] = useState<ParsedPerson[]>([]);
   const [editableRelations, setEditableRelations] = useState<ParsedRelation[]>([]);
+  const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
 
   const provider = getDefaultProvider();
+  const isLocal = provider?.type === 'local';
 
   const handleParse = async () => {
     if (!text.trim()) {
@@ -37,7 +40,13 @@ export default function BatchImportModal({ onClose }: BatchImportModalProps) {
     }
 
     setError('');
+    setDownloadProgress(null);
     setStep('parsing');
+
+    // Local model: surface download progress in the UI.
+    if (isLocal) {
+      onLocalModelProgress((p) => setDownloadProgress(p));
+    }
 
     try {
       const result = await parseWithAI(text.trim(), provider);
@@ -48,6 +57,8 @@ export default function BatchImportModal({ onClose }: BatchImportModalProps) {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'AI 解析失败，请重试');
       setStep('input');
+    } finally {
+      setDownloadProgress(null);
     }
   };
 
@@ -120,7 +131,7 @@ export default function BatchImportModal({ onClose }: BatchImportModalProps) {
             </svg>
           </div>
           <h3 className="text-base font-semibold text-gray-900 mb-1">需要配置 AI 提供商</h3>
-          <p className="text-sm text-gray-500 mb-4">请先在设置中配置 OpenAI 或 Anthropic API Key</p>
+          <p className="text-sm text-gray-500 mb-4">请先在设置中配置 AI（推荐「本地模型」，完全免费，无需 API Key）</p>
           <button
             onClick={onClose}
             className="px-6 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-all duration-200"
@@ -199,8 +210,23 @@ export default function BatchImportModal({ onClose }: BatchImportModalProps) {
                   <path d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
                 </svg>
               </div>
-              <p className="text-sm text-gray-500">AI 正在解析中...</p>
-              <p className="text-xs text-gray-400 mt-1">这可能需要几秒钟</p>
+              {isLocal && downloadProgress !== null && downloadProgress < 1 ? (
+                <>
+                  <p className="text-sm text-gray-600 mb-3">首次使用，正在下载本地模型...</p>
+                  <div className="w-48 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-blue-600 transition-all duration-300"
+                      style={{ width: `${Math.round(downloadProgress * 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-400 mt-2">{Math.round(downloadProgress * 100)}%</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-gray-500">AI 正在解析中...</p>
+                  <p className="text-xs text-gray-400 mt-1">这可能需要几秒钟</p>
+                </>
+              )}
             </div>
           )}
 

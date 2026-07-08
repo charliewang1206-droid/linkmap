@@ -75,14 +75,23 @@ export interface Circle {
 }
 
 // --- AI Provider Configuration ---
-export type AIProviderType = 'openai' | 'anthropic' | 'custom';
+export type AIProviderType = 'openai' | 'anthropic' | 'custom' | 'local' | 'ollama';
+
+// Free / low-cost preset providers (no or near-zero cost). Used by the
+// "自定义兼容" quick-pick and the Ollama option.
+export const FREE_PROVIDER_PRESETS = {
+  deepseek: { label: 'DeepSeek', baseURL: 'https://api.deepseek.com/v1', model: 'deepseek-chat', description: '注册送免费额度' },
+  qwen: { label: '通义千问', baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus', description: '阿里云，有免费额度' },
+  glm: { label: '智谱 GLM', baseURL: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4-flash', description: '有免费额度' },
+  ollama: { label: '本地 Ollama', baseURL: 'http://localhost:11434/v1', model: 'qwen2.5:0.5b', description: '本机免费运行' },
+} as const;
 
 export interface AIProviderConfig {
   id: string;
   type: AIProviderType;
   name: string;
-  apiKeyEncrypted: string;  // Web Crypto encrypted (Base64)
-  apiKeyIV: string;          // Encryption IV (Base64)
+  apiKeyEncrypted: string;  // Web Crypto encrypted (Base64); empty for local/ollama
+  apiKeyIV: string;          // Encryption IV (Base64); empty for local/ollama
   baseURL?: string;          // Custom API endpoint
   model?: string;            // Model name
   isDefault: boolean;

@@ -1,5 +1,6 @@
 import type { AIProviderConfig, BatchImportResult } from '../types';
 import { decryptAPIKey } from './crypto';
+import { parseWithWebLLM } from './webllm';
 
 const SYSTEM_PROMPT = `你是一个专业的文本解析助手。用户会给你一段描述人际关系的自然语言文本，请解析出人物列表和关系列表。
 
@@ -22,12 +23,17 @@ export async function parseWithAI(
   text: string,
   provider: AIProviderConfig
 ): Promise<BatchImportResult> {
+  // Local browser model: no network, no key.
+  if (provider.type === 'local') {
+    return parseWithWebLLM(text);
+  }
+
   const apiKey = await decryptAPIKey(provider.apiKeyEncrypted, provider.apiKeyIV);
 
   if (provider.type === 'anthropic') {
     return parseWithAnthropic(text, provider, apiKey);
   }
-  // OpenAI and custom providers use OpenAI-compatible API
+  // OpenAI, custom and ollama providers use OpenAI-compatible API
   return parseWithOpenAI(text, provider, apiKey);
 }
 

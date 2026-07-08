@@ -297,6 +297,27 @@ test.describe('导出和备份', () => {
   });
 });
 
+test.describe('AI 设置入口', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto(BASE_URL);
+    await page.waitForSelector('h1:has-text("LinkMap")', { timeout: 10000 });
+    // 关闭首次启动引导（若存在）
+    const skipButton = page.locator('button:has-text("跳过，稍后配置")');
+    if (await skipButton.count() > 0) {
+      await skipButton.click();
+    }
+  });
+
+  test('应能通过顶栏齿轮随时打开 AI 设置', async ({ page }) => {
+    await page.locator('button[title="AI 设置"]').click();
+    // manage 模式标题为「AI 设置」
+    await expect(page.locator('text=AI 设置').first()).toBeVisible({ timeout: 5000 });
+    // 关闭后弹窗消失
+    await page.locator('button:has-text("关闭")').click();
+    await expect(page.locator('text=AI 设置')).toHaveCount(0);
+  });
+});
+
 test.describe('移动端响应式', () => {
   test('移动端视口应该正常工作', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });

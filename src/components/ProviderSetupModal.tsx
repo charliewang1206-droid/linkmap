@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAIStore } from '../stores/useAIStore';
-import { FREE_PROVIDER_PRESETS } from '../types';
-import { isCryptoAvailable } from '../utils/crypto';
+import { FREE_PROVIDER_PRESETS, type AIProviderConfig, type AIProviderType } from '../types';
+import { isCryptoAvailable, encryptAPIKey } from '../utils/crypto';
 import { isWebGPUSupported } from '../utils/webllm';
 
 interface ProviderSetupModalProps {
   onComplete: () => void;
+  /** setup: 首次启动引导；manage: 随时调整配置 */
+  mode?: 'setup' | 'manage';
 }
 
 type Choice =
@@ -61,8 +63,24 @@ function choiceKey(c: Choice): string {
   return `paid-${c.type}`;
 }
 
-export default function ProviderSetupModal({ onComplete }: ProviderSetupModalProps) {
+/** 将已保存的 provider 反向映射回选项，用于 manage 模式预填 */
+function providerToChoice(p: AIProviderConfig): Choice {
+  if (p.type === 'local') return { kind: 'local' };
+  if (p.type === 'ollama') return { kind: 'ollama' };
+  if (p.type === 'openai') return { kind: 'paid', type: 'openai' };
+  if (p.type === 'anthropic') return { kind: 'paid', type: 'anthropic' };
+  // custom：尝试匹配免费预设
+  const matched = (Object.keys(FREE_PROVIDER_PRESETS) as (keyof typeof FREE_PROVIDER_PRESETS)[]).find(
+    (k) => FREE_PROVIDER_PRESETS[k].baseURL === p.baseURL
+  );
+  return { kind: 'free', key: matched ?? 'deepseek' };
+}
+
+export default function ProviderSetupModal({ onComplete, mode = 'setup' }: ProviderSetupModalProps) {
   const addProvider = useAIStore((s) => s.addProvider);
+  const updateProvider = useAIStore((s) => s.updateProvider);
+  const getDefaultProvider = useAIStore((s) => s.getDefaultProvider);
+  const providers = useAIStore((s) => s.providers);
 
   const [choice, setChoice] = useState<Choice>({ kind: 'local' });
   const [apiKey, setApiKey] = useState('');
@@ -71,13 +89,39 @@ export default function ProviderSetupModal({ onComplete }: ProviderSetupModalPro
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
+  // manage 模式：用当前默认 provider 预填表单
+  useEffect(() => {
+    if (mode !== 'manage') return;
+    const current = getDefaultProvider();
+    if (!current) return;
+    setChoice(providerToChoice(current));
+    if (current.type === 'ollama') {
+      setOllamaURL(current.baseURL ?? FREE_PROVIDER_PRESETS.ollama.baseURL);
+      setOllamaModel(current.model ?? FREE_PROVIDER_PRESETS.ollama.model);
+    }
+    // 加密的 Key 不回显，留空表示保留原 Key
+    setApiKey('');
+  }, [mode]);
+
   const needsApiKey = choice.kind === 'paid' || choice.kind === 'free';
   const needsOllamaConfig = choice.kind === 'ollama';
+
+  /** 根据当前选项构建 provider 基础字段 */
+  function buildBaseData(): { type: AIProviderType; name: string; baseURL?: string; model?: string } {
+    if (choice.kind === 'local') return { type: 'local', name: '本地模型' };
+    if (choice.kind === 'ollama')
+      return { type: 'ollama', name: '本地 Ollama', baseURL: ollamaURL.trim(), model: ollamaModel.trim() };
+    if (choice.kind === 'free') {
+      const preset = FREE_PROVIDER_PRESETS[choice.key];
+      return { type: 'custom', name: preset.label, baseURL: preset.baseURL, model: preset.model };
+    }
+    return { type: choice.type, name: choice.type === 'openai' ? 'OpenAI' : 'Anthropic' };
+  }
 
   const handleSave = async () => {
     setError('');
 
-    if (needsApiKey && !apiKey.trim()) {
+    if (needsApiKey && !apiKey.trim() && mode === 'setup') {
       setError('请输入 API Key');
       return;
     }
@@ -92,32 +136,26 @@ export default function ProviderSetupModal({ onComplete }: ProviderSetupModalPro
 
     setIsSaving(true);
     try {
-      if (choice.kind === 'local') {
-        await addProvider({ type: 'local', name: '本地模型', isDefault: true });
-      } else if (choice.kind === 'ollama') {
-        await addProvider({
-          type: 'ollama',
-          name: '本地 Ollama',
-          baseURL: ollamaURL.trim(),
-          model: ollamaModel.trim(),
-          isDefault: true,
-        });
-      } else if (choice.kind === 'free') {
-        const preset = FREE_PROVIDER_PRESETS[choice.key];
-        await addProvider({
-          type: 'custom',
-          name: preset.label,
-          apiKey: apiKey.trim(),
-          baseURL: preset.baseURL,
-          model: preset.model,
-          isDefault: true,
-        });
+      const base = buildBaseData();
+      const existing = mode === 'manage' ? getDefaultProvider() : undefined;
+
+      if (existing) {
+        // 更新已有默认 provider
+        const patch: Partial<AIProviderConfig> = { ...base, isDefault: true };
+        if (needsApiKey && apiKey.trim()) {
+          const { encrypted, iv } = await encryptAPIKey(apiKey.trim());
+          patch.apiKeyEncrypted = encrypted;
+          patch.apiKeyIV = iv;
+        } else if (!needsApiKey) {
+          // 本地/Ollama 无需 Key，清空可能存在的旧密文
+          patch.apiKeyEncrypted = '';
+          patch.apiKeyIV = '';
+        }
+        await updateProvider(existing.id, patch);
       } else {
-        // paid
         await addProvider({
-          type: choice.type,
-          name: choice.type === 'openai' ? 'OpenAI' : 'Anthropic',
-          apiKey: apiKey.trim(),
+          ...base,
+          apiKey: needsApiKey ? apiKey.trim() : undefined,
           isDefault: true,
         });
       }
@@ -129,7 +167,8 @@ export default function ProviderSetupModal({ onComplete }: ProviderSetupModalPro
     }
   };
 
-  const handleSkip = () => onComplete();
+  const currentName = providers.find((p) => p.isDefault)?.name ?? providers[0]?.name;
+  const isManage = mode === 'manage';
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
@@ -143,10 +182,21 @@ export default function ProviderSetupModal({ onComplete }: ProviderSetupModalPro
               </svg>
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">配置 AI 助手</h2>
-              <p className="text-xs text-gray-400">连接 AI 后可使用智能批量导入功能</p>
+              <h2 className="text-lg font-semibold text-gray-900">
+                {isManage ? 'AI 设置' : '配置 AI 助手'}
+              </h2>
+              <p className="text-xs text-gray-400">
+                {isManage
+                  ? '随时更换或调整 AI 方案'
+                  : '连接 AI 后可使用智能批量导入功能'}
+              </p>
             </div>
           </div>
+          {isManage && currentName && (
+            <p className="text-xs text-gray-500 mt-1">
+              当前方案：<span className="font-medium text-gray-700">{currentName}</span>
+            </p>
+          )}
         </div>
 
         {/* Body */}
@@ -195,9 +245,9 @@ export default function ProviderSetupModal({ onComplete }: ProviderSetupModalPro
                 type="password"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                placeholder="粘贴你的 API Key"
+                placeholder={isManage ? '留空则保留当前 Key' : '粘贴你的 API Key'}
                 className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
-                autoFocus
+                autoFocus={isManage}
               />
               <p className="text-xs text-gray-400 mt-1">
                 Key 将加密存储在浏览器本地，不会上传到任何服务器
@@ -253,17 +303,17 @@ export default function ProviderSetupModal({ onComplete }: ProviderSetupModalPro
         {/* Footer */}
         <div className="px-6 py-4 border-t border-gray-100 flex gap-3 shrink-0">
           <button
-            onClick={handleSkip}
+            onClick={onComplete}
             className="flex-1 py-2.5 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all duration-200"
           >
-            跳过，稍后配置
+            {isManage ? '关闭' : '跳过，稍后配置'}
           </button>
           <button
             onClick={handleSave}
-            disabled={isSaving || (needsApiKey && !apiKey.trim())}
+            disabled={isSaving || (needsApiKey && !apiKey.trim() && mode === 'setup')}
             className="flex-1 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isSaving ? '保存中...' : '保存并开始使用'}
+            {isSaving ? '保存中...' : isManage ? '保存' : '保存并开始使用'}
           </button>
         </div>
       </div>

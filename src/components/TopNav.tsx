@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useViewStore } from '../stores/useViewStore';
 import { useUIStore } from '../stores/useUIStore';
 import BatchImportModal from './BatchImportModal';
+import ProviderSetupModal from './ProviderSetupModal';
 
 export default function TopNav() {
   const views = useViewStore((s) => s.views);
@@ -11,6 +12,8 @@ export default function TopNav() {
   const searchQuery = useUIStore((s) => s.searchQuery);
   const setSearchQuery = useUIStore((s) => s.setSearchQuery);
   const toggleMobileSidebar = useUIStore((s) => s.toggleMobileSidebar);
+  const setAISettingsOpen = useUIStore((s) => s.setAISettingsOpen);
+  const aiSettingsOpen = useUIStore((s) => s.aiSettingsOpen);
 
   const [showNewViewInput, setShowNewViewInput] = useState(false);
   const [newViewName, setNewViewName] = useState('');
@@ -122,6 +125,18 @@ export default function TopNav() {
           AI 导入
         </button>
 
+        {/* AI 设置入口（桌面/移动端均可随时调整 AI 配置） */}
+        <button
+          onClick={() => setAISettingsOpen(true)}
+          className="shrink-0 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
+          title="AI 设置"
+        >
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z" />
+          </svg>
+        </button>
+
         {/* 移动端快捷添加按钮 */}
         <button
           onClick={() => {
@@ -164,6 +179,11 @@ export default function TopNav() {
       {/* AI 批量导入弹窗 */}
       {showBatchImport && (
         <BatchImportModal onClose={() => setShowBatchImport(false)} />
+      )}
+
+      {/* AI 设置弹窗（随时调整配置） */}
+      {aiSettingsOpen && (
+        <ProviderSetupModal mode="manage" onComplete={() => setAISettingsOpen(false)} />
       )}
     </>
   );

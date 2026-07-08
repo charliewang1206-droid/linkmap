@@ -15,6 +15,7 @@ interface UIState {
   searchQuery: string;
   activeFilters: UIFilters;
   isMobileSidebarOpen: boolean;
+  aiSettingsOpen: boolean;
 
   setSelectedPerson: (id: string | null) => void;
   setFocusedPerson: (id: string | null) => void;
@@ -26,6 +27,7 @@ interface UIState {
   clearFilters: () => void;
   toggleMobileSidebar: () => void;
   setMobileSidebarOpen: (open: boolean) => void;
+  setAISettingsOpen: (open: boolean) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -36,6 +38,7 @@ export const useUIStore = create<UIState>((set) => ({
   searchQuery: '',
   activeFilters: {},
   isMobileSidebarOpen: false,
+  aiSettingsOpen: false,
 
   setSelectedPerson: (id) => set({ selectedPersonId: id }),
 
@@ -57,4 +60,6 @@ export const useUIStore = create<UIState>((set) => ({
     set((state) => ({ isMobileSidebarOpen: !state.isMobileSidebarOpen })),
 
   setMobileSidebarOpen: (open) => set({ isMobileSidebarOpen: open }),
+
+  setAISettingsOpen: (open) => set({ aiSettingsOpen: open }),
 }));

@@ -20,6 +20,7 @@ import { useViewStore } from '../stores/useViewStore';
 import { PRESET_RELATION_TYPES } from '../types';
 import PersonNode from './PersonNode';
 import EmptyState from './EmptyState';
+import AddPersonModal from './AddPersonModal';
 
 const nodeTypes = { personNode: PersonNode };
 
@@ -28,12 +29,13 @@ export default function GraphCanvas() {
   const relations = useRelationStore((s) => s.relations);
   const addRelation = useRelationStore((s) => s.addRelation);
   const updatePerson = usePersonStore((s) => s.updatePerson);
-  const addPerson = usePersonStore((s) => s.addPerson);
   const selectedPersonId = useUIStore((s) => s.selectedPersonId);
   const setSelectedPerson = useUIStore((s) => s.setSelectedPerson);
   const focusedPersonId = useUIStore((s) => s.focusedPersonId);
   const setFocusedPerson = useUIStore((s) => s.setFocusedPerson);
   const currentViewId = useViewStore((s) => s.currentViewId);
+
+  const [showAddModal, setShowAddModal] = useState(false);
 
   // 连接中关系类型选择弹窗
   const [pendingConnection, setPendingConnection] = useState<{
@@ -198,23 +200,19 @@ export default function GraphCanvas() {
     });
   }, [nodes, setNodes, updatePerson]);
 
-  // 添加第一个人物
-  const handleAddFirstPerson = useCallback(async () => {
-    const name = window.prompt('请输入人物姓名：');
-    if (!name || !name.trim()) return;
-    await addPerson({
-      name: name.trim(),
-      tags: [],
-      viewIds: [currentViewId],
-      position: { x: 300, y: 200 },
-    });
-  }, [addPerson, currentViewId]);
+  // 添加人物
+  const handleOpenAddModal = useCallback(() => {
+    setShowAddModal(true);
+  }, []);
 
   if (viewPersons.length === 0) {
     return (
-      <div className="h-full flex items-center justify-center">
-        <EmptyState onAddPerson={handleAddFirstPerson} />
-      </div>
+      <>
+        <div className="h-full flex items-center justify-center">
+          <EmptyState onAddPerson={handleOpenAddModal} />
+        </div>
+        {showAddModal && <AddPersonModal onClose={() => setShowAddModal(false)} />}
+      </>
     );
   }
 
@@ -269,6 +267,20 @@ export default function GraphCanvas() {
       >
         自动布局
       </button>
+
+      {/* 添加人物按钮 */}
+      <button
+        onClick={handleOpenAddModal}
+        className="absolute top-3 right-24 z-10 px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg shadow-sm hover:bg-blue-700 transition-all duration-200 flex items-center gap-1"
+      >
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M8 2a.75.75 0 01.75.75v4.5h4.5a.75.75 0 010 1.5h-4.5v4.5a.75.75 0 01-1.5 0v-4.5h-4.5a.75.75 0 010-1.5h4.5v-4.5A.75.75 0 018 2z" />
+        </svg>
+        添加人物
+      </button>
+
+      {/* 添加人物弹窗 */}
+      {showAddModal && <AddPersonModal onClose={() => setShowAddModal(false)} />}
 
       {/* 聚焦模式提示 */}
       {focusedPersonId && (

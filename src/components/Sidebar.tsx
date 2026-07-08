@@ -3,6 +3,7 @@ import { usePersonStore } from '../stores/usePersonStore';
 import { useUIStore } from '../stores/useUIStore';
 import { useViewStore } from '../stores/useViewStore';
 import { generateAvatarDataUrl } from '../utils/avatar';
+import AddPersonModal from './AddPersonModal';
 
 export default function Sidebar() {
   const persons = usePersonStore((s) => s.persons);
@@ -17,6 +18,7 @@ export default function Sidebar() {
   const [showCityDropdown, setShowCityDropdown] = useState(false);
   const [showTitleDropdown, setShowTitleDropdown] = useState(false);
   const [showTagDropdown, setShowTagDropdown] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   // 从当前 View 的人物中提取动态筛选值
   const filteredPersons = useMemo(() => {
@@ -228,7 +230,13 @@ export default function Sidebar() {
                 d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
               />
             </svg>
-            <p className="text-sm">暂无人物，点击下方按钮添加</p>
+            <p className="text-sm">暂无人物</p>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="mt-3 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all duration-200"
+            >
+              添加人物
+            </button>
           </div>
         ) : (
           <div className="py-1">
@@ -273,6 +281,24 @@ export default function Sidebar() {
           </div>
         )}
       </div>
+
+      {/* 侧边栏底部添加按钮 */}
+      {filteredPersons.length > 0 && (
+        <div className="p-3 border-t border-gray-100">
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="w-full py-2 text-sm font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-all duration-200 flex items-center justify-center gap-1.5"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M8 2a.75.75 0 01.75.75v4.5h4.5a.75.75 0 010 1.5h-4.5v4.5a.75.75 0 01-1.5 0v-4.5h-4.5a.75.75 0 010-1.5h4.5v-4.5A.75.75 0 018 2z" />
+            </svg>
+            添加人物
+          </button>
+        </div>
+      )}
+
+      {/* 添加人物弹窗 */}
+      {showAddModal && <AddPersonModal onClose={() => setShowAddModal(false)} />}
     </aside>
   );
 }

@@ -21,7 +21,8 @@ const SYSTEM_PROMPT = `你是一个专业的文本解析助手。用户会给你
 
 export async function parseWithAI(
   text: string,
-  provider: AIProviderConfig
+  provider: AIProviderConfig,
+  signal?: AbortSignal
 ): Promise<BatchImportResult> {
   // Local browser model: no network, no key.
   if (provider.type === 'local') {
@@ -31,16 +32,17 @@ export async function parseWithAI(
   const apiKey = await decryptAPIKey(provider.apiKeyEncrypted, provider.apiKeyIV);
 
   if (provider.type === 'anthropic') {
-    return parseWithAnthropic(text, provider, apiKey);
+    return parseWithAnthropic(text, provider, apiKey, signal);
   }
   // OpenAI, custom and ollama providers use OpenAI-compatible API
-  return parseWithOpenAI(text, provider, apiKey);
+  return parseWithOpenAI(text, provider, apiKey, signal);
 }
 
 async function parseWithOpenAI(
   text: string,
   provider: AIProviderConfig,
-  apiKey: string
+  apiKey: string,
+  signal?: AbortSignal
 ): Promise<BatchImportResult> {
   const baseURL = provider.type === 'openai'
     ? 'https://api.openai.com/v1'
@@ -62,7 +64,7 @@ async function parseWithOpenAI(
       temperature: 0.3,
       response_format: { type: 'json_object' },
     }),
-    signal: AbortSignal.timeout(30000),
+    signal: signal ?? AbortSignal.timeout(15_000),
   });
 
   if (!response.ok) {
@@ -89,7 +91,8 @@ async function parseWithOpenAI(
 async function parseWithAnthropic(
   text: string,
   provider: AIProviderConfig,
-  apiKey: string
+  apiKey: string,
+  signal?: AbortSignal
 ): Promise<BatchImportResult> {
   const model = provider.model || 'claude-3-haiku-20240307';
 
@@ -108,7 +111,7 @@ async function parseWithAnthropic(
         { role: 'user', content: text },
       ],
     }),
-    signal: AbortSignal.timeout(30000),
+    signal: signal ?? AbortSignal.timeout(15_000),
   });
 
   if (!response.ok) {

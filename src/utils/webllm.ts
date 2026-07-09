@@ -24,6 +24,14 @@ export function onLocalModelProgress(cb: (p: number) => void) {
   cachedProgressCb = cb;
 }
 
+/** 带超时的 Promise 包装器 */
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} 超时（${ms / 1000} 秒）`)), ms);
+    promise.then((v) => { clearTimeout(timer); resolve(v); }).catch((e) => { clearTimeout(timer); reject(e); });
+  });
+}
+
 async function getGenerator(): Promise<TextGenerationPipeline> {
   if (!generatorPromise) {
     generatorPromise = (async () => {
@@ -41,7 +49,8 @@ async function getGenerator(): Promise<TextGenerationPipeline> {
       return gen as unknown as TextGenerationPipeline;
     })();
   }
-  return generatorPromise;
+  // 模型下载可能耗时较长，给 5 分钟超时
+  return withTimeout(generatorPromise, 300_000, '本地模型加载');
 }
 
 const SYSTEM_PROMPT = `你是一个专业的文本解析助手。用户会给你一段描述人际关系的自然语言文本，请解析出人物列表和关系列表。
@@ -73,11 +82,16 @@ export async function parseWithWebLLM(text: string): Promise<BatchImportResult> 
     { role: 'user', content: text },
   ];
 
-  const output = await generator(messages, {
-    max_new_tokens: 1024,
-    do_sample: false,
-    return_full_text: false,
-  } as never);
+  // 本地推理加 2 分钟超时，防止模型卡住
+  const output = await withTimeout(
+    generator(messages, {
+      max_new_tokens: 1024,
+      do_sample: false,
+      return_full_text: false,
+    } as never),
+    120_000,
+    '本地模型推理'
+  );
 
   // @huggingface/transformers returns an array; the generated text is in
   // the last item's `.generated_text` (string) for chat-formatted input.

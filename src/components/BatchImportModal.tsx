@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useAIStore } from '../stores/useAIStore';
 import { usePersonStore } from '../stores/usePersonStore';
 import { useRelationStore } from '../stores/useRelationStore';
@@ -26,8 +26,18 @@ export default function BatchImportModal({ onClose }: BatchImportModalProps) {
   const [editableRelations, setEditableRelations] = useState<ParsedRelation[]>([]);
   const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
 
+  // 用于取消正在进行的解析请求
+  const abortRef = useRef<AbortController | null>(null);
+
   const provider = getDefaultProvider();
   const isLocal = provider?.type === 'local';
+
+  const handleCancel = () => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setDownloadProgress(null);
+    setStep('input');
+  };
 
   const handleParse = async () => {
     if (!text.trim()) {
@@ -43,22 +53,33 @@ export default function BatchImportModal({ onClose }: BatchImportModalProps) {
     setDownloadProgress(null);
     setStep('parsing');
 
+    // 每次解析新建 AbortController，支持取消
+    const ac = new AbortController();
+    abortRef.current = ac;
+
     // Local model: surface download progress in the UI.
     if (isLocal) {
       onLocalModelProgress((p) => setDownloadProgress(p));
     }
 
     try {
-      const result = await parseWithAI(text.trim(), provider);
+      const result = await parseWithAI(text.trim(), provider, ac.signal);
+      // 解析完成才清理 abortRef（取消时会在 catch 里处理）
+      abortRef.current = null;
       setResult(result);
       setEditablePersons(result.persons.map((p) => ({ ...p, tags: p.tags || [] })));
       setEditableRelations(result.relations.map((r) => ({ ...r })));
       setStep('preview');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'AI 解析失败，请重试');
-      setStep('input');
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        // 用户主动取消，不显示错误
+      } else {
+        setError(err instanceof Error ? err.message : 'AI 解析失败，请重试');
+        setStep('input');
+      }
     } finally {
       setDownloadProgress(null);
+      if (abortRef.current === ac) abortRef.current = null;
     }
   };
 
@@ -143,6 +164,54 @@ export default function BatchImportModal({ onClose }: BatchImportModalProps) {
     );
   }
 
+  // --- 解析中：显示进度 + 取消按钮 ---
+  if (step === 'parsing') {
+    const isDownloading = isLocal && downloadProgress !== null && downloadProgress < 1;
+    const statusText = isDownloading
+      ? `首次使用，正在下载本地模型…（约 500MB，后续无需重复下载）`
+      : isLocal
+        ? '本地模型正在推理中…'
+        : '正在调用 AI 解析…';
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
+        <div
+          className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-8 text-center"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="text-blue-600">
+              <path d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+            </svg>
+          </div>
+
+          <p className="text-sm text-gray-700 mb-3">{statusText}</p>
+
+          {/* 进度条（仅在下载中显示） */}
+          {isDownloading && (
+            <>
+              <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden mb-2">
+                <div
+                  className="h-full bg-blue-600 transition-all duration-300"
+                  style={{ width: `${Math.round(downloadProgress! * 100)}%` }}
+                />
+              </div>
+              <p className="text-xs text-gray-400">{Math.round(downloadProgress! * 100)}%</p>
+            </>
+          )}
+
+          {/* 取消按钮 */}
+          <button
+            onClick={handleCancel}
+            className="mt-5 px-5 py-2 text-sm text-gray-500 border border-gray-200 rounded-xl hover:bg-gray-50 hover:text-gray-700 transition-all duration-200"
+          >
+            取消解析
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
       <div
@@ -203,33 +272,7 @@ export default function BatchImportModal({ onClose }: BatchImportModalProps) {
             </div>
           )}
 
-          {step === 'parsing' && (
-            <div className="p-12 flex flex-col items-center justify-center">
-              <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mb-4 animate-pulse">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="text-blue-600">
-                  <path d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-                </svg>
-              </div>
-              {isLocal && downloadProgress !== null && downloadProgress < 1 ? (
-                <>
-                  <p className="text-sm text-gray-600 mb-3">首次使用，正在下载本地模型...</p>
-                  <div className="w-48 h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-blue-600 transition-all duration-300"
-                      style={{ width: `${Math.round(downloadProgress * 100)}%` }}
-                    />
-                  </div>
-                  <p className="text-xs text-gray-400 mt-2">{Math.round(downloadProgress * 100)}%</p>
-                </>
-              ) : (
-                <>
-                  <p className="text-sm text-gray-500">AI 正在解析中...</p>
-                  <p className="text-xs text-gray-400 mt-1">这可能需要几秒钟</p>
-                </>
-              )}
-            </div>
-          )}
-
+          {/* Preview step */}
           {(step === 'preview' || step === 'confirming') && result && (
             <div className="p-5 space-y-4">
               {/* Persons preview */}

@@ -77,13 +77,45 @@ export interface Circle {
 // --- AI Provider Configuration ---
 export type AIProviderType = 'openai' | 'anthropic' | 'custom' | 'local' | 'ollama';
 
-// Free / low-cost preset providers (no or near-zero cost). Used by the
-// "自定义兼容" quick-pick and the Ollama option.
+// Free / low-cost preset providers. All use OpenAI-compatible API.
+// SiliconFlow is the recommended default — fast, free monthly quota, no credit card.
 export const FREE_PROVIDER_PRESETS = {
-  deepseek: { label: 'DeepSeek', baseURL: 'https://api.deepseek.com/v1', model: 'deepseek-chat', description: '注册送免费额度' },
-  qwen: { label: '通义千问', baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus', description: '阿里云，有免费额度' },
-  glm: { label: '智谱 GLM', baseURL: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4-flash', description: '有免费额度' },
-  ollama: { label: '本地 Ollama', baseURL: 'http://localhost:11434/v1', model: 'qwen2.5:0.5b', description: '本机免费运行' },
+  siliconflow: {
+    label: '硅基流动',
+    baseURL: 'https://api.siliconflow.cn/v1',
+    model: 'deepseek-ai/DeepSeek-V4-Flash',
+    description: '每月 200 万 Token 免费，极速响应，推荐',
+  },
+  doubao: {
+    label: '豆包 (字节)',
+    baseURL: 'https://ark.cn-beijing.volces.com/api/v3',
+    model: 'doubao-seed-2-0-mini-260215',
+    description: '50 万 Token 免费，¥0.3/百万 Token 极低价',
+  },
+  deepseek: {
+    label: 'DeepSeek 官方',
+    baseURL: 'https://api.deepseek.com/v1',
+    model: 'deepseek-chat',
+    description: '注册送 500 万 Token（30 天有效）',
+  },
+  qwen: {
+    label: '通义千问',
+    baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    model: 'qwen-plus',
+    description: '阿里云，新用户送 100 万 Token',
+  },
+  glm: {
+    label: '智谱 GLM',
+    baseURL: 'https://open.bigmodel.cn/api/paas/v4',
+    model: 'glm-4-flash',
+    description: '有免费额度',
+  },
+  ollama: {
+    label: '本地 Ollama',
+    baseURL: 'http://localhost:11434/v1',
+    model: 'qwen2.5:0.5b',
+    description: '本机免费运行',
+  },
 } as const;
 
 export interface AIProviderConfig {

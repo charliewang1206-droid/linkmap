@@ -18,14 +18,20 @@ type Choice =
 
 const CHOICES: { id: Choice; label: string; description: string; badge?: string }[] = [
   {
-    id: { kind: 'local' },
-    label: '本地模型 (免费)',
-    description: '浏览器内运行，无需 Key、不联网、隐私最佳',
+    id: { kind: 'free', key: 'siliconflow' },
+    label: '硅基流动',
+    description: FREE_PROVIDER_PRESETS.siliconflow.description,
     badge: '推荐',
   },
   {
+    id: { kind: 'free', key: 'doubao' },
+    label: '豆包 (字节)',
+    description: FREE_PROVIDER_PRESETS.doubao.description,
+    badge: '免费额度',
+  },
+  {
     id: { kind: 'free', key: 'deepseek' },
-    label: 'DeepSeek',
+    label: 'DeepSeek 官方',
     description: FREE_PROVIDER_PRESETS.deepseek.description,
     badge: '免费额度',
   },
@@ -38,6 +44,11 @@ const CHOICES: { id: Choice; label: string; description: string; badge?: string 
     id: { kind: 'free', key: 'glm' },
     label: '智谱 GLM',
     description: FREE_PROVIDER_PRESETS.glm.description,
+  },
+  {
+    id: { kind: 'local' },
+    label: '本地模型 (浏览器)',
+    description: '完全离线，首次需下载约 500MB，需 WebGPU',
   },
   {
     id: { kind: 'ollama' },
@@ -82,7 +93,7 @@ export default function ProviderSetupModal({ onComplete, mode = 'setup' }: Provi
   const getDefaultProvider = useAIStore((s) => s.getDefaultProvider);
   const providers = useAIStore((s) => s.providers);
 
-  const [choice, setChoice] = useState<Choice>({ kind: 'local' });
+  const [choice, setChoice] = useState<Choice>({ kind: 'free', key: 'siliconflow' });
   const [apiKey, setApiKey] = useState('');
   const [ollamaURL, setOllamaURL] = useState<string>(FREE_PROVIDER_PRESETS.ollama.baseURL);
   const [ollamaModel, setOllamaModel] = useState<string>(FREE_PROVIDER_PRESETS.ollama.model);

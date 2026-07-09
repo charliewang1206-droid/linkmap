@@ -19,7 +19,7 @@ import { useUIStore } from '../stores/useUIStore';
 import { useViewStore } from '../stores/useViewStore';
 import { useCircleStore } from '../stores/useCircleStore';
 import { PRESET_RELATION_TYPES } from '../types';
-import { dagreLayout } from '../utils/layout';
+import { smartLayout } from '../utils/layout';
 import PersonNode from './PersonNode';
 import CircleNode from './CircleNode';
 import EmptyState from './EmptyState';
@@ -218,9 +218,9 @@ export default function GraphCanvas() {
     [updatePerson]
   );
 
-  // 自动布局 - dagre 层次化布局
+  // 自动布局 - 智能选择布局算法
   const handleAutoLayout = useCallback(() => {
-    const updated = dagreLayout(nodes, edges, circles, 'TB');
+    const updated = smartLayout(nodes, edges, circles);
     setNodes(updated);
     // 持久化位置
     updated.forEach((node) => {

@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { usePersonStore } from '../stores/usePersonStore';
 import { useRelationStore } from '../stores/useRelationStore';
 import { useViewStore } from '../stores/useViewStore';
 import { useUIStore } from '../stores/useUIStore';
+import { useCircleStore } from '../stores/useCircleStore';
 import { generateAvatarDataUrl, compressImage } from '../utils/avatar';
-import { type Person, type RelationType } from '../types';
+import { type Person, type RelationType, CIRCLE_COLORS } from '../types';
 import AddRelationModal from './AddRelationModal';
 import CircleManager from './CircleManager';
 
@@ -24,6 +25,31 @@ export default function EditPanel() {
 
   const person = selectedPersonId ? getPerson(selectedPersonId) : undefined;
   const personRelations = selectedPersonId ? getRelationsForPerson(selectedPersonId) : [];
+
+  const createCircle = useCircleStore((s) => s.createCircle);
+  const circles = useCircleStore((s) => s.circles);
+
+  // 分析同类型关系，用于「一键归入圈子」
+  const relationGroups = useMemo(() => {
+    const groups = new Map<string, string[]>(); // type → otherPersonIds
+    for (const rel of personRelations) {
+      const otherId = rel.sourceId === selectedPersonId ? rel.targetId : rel.sourceId;
+      const existing = groups.get(rel.type) || [];
+      existing.push(otherId);
+      groups.set(rel.type, existing);
+    }
+    return groups;
+  }, [personRelations, selectedPersonId]);
+
+  const handleGroupToCircle = async (type: string, memberIds: string[]) => {
+    if (!selectedPersonId) return;
+    const allIds = [selectedPersonId, ...memberIds];
+    await createCircle({
+      name: `${type}圈`,
+      color: CIRCLE_COLORS[circles.length % CIRCLE_COLORS.length],
+      personIds: allIds,
+    });
+  };
 
   const [form, setForm] = useState<Partial<Person>>({});
   const [tagInput, setTagInput] = useState('');
@@ -396,6 +422,22 @@ export default function EditPanel() {
               添加关系
             </button>
           </div>
+
+          {/* 一键归入圈子提示 */}
+          {Array.from(relationGroups.entries())
+            .filter(([, ids]) => ids.length >= 2)
+            .map(([type, ids]) => (
+              <button
+                key={type}
+                onClick={() => handleGroupToCircle(type, ids)}
+                className="w-full mb-2 px-3 py-2 text-xs bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors flex items-center justify-between"
+              >
+                <span className="text-purple-700">
+                  将 <strong>{ids.length + 1}</strong> 个「{type}」关系归入圈子
+                </span>
+                <span className="text-purple-500 text-xs">一键创建 →</span>
+              </button>
+            ))}
           {personRelations.length === 0 ? (
             <p className="text-xs text-gray-400 py-2">暂无关系，在画布中拖拽连线创建</p>
           ) : (

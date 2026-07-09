@@ -4,6 +4,7 @@ import { useUIStore } from '../stores/useUIStore';
 import { useViewStore } from '../stores/useViewStore';
 import { generateAvatarDataUrl } from '../utils/avatar';
 import AddPersonModal from './AddPersonModal';
+import CircleManager from './CircleManager';
 
 export default function Sidebar() {
   const persons = usePersonStore((s) => s.persons);
@@ -19,6 +20,7 @@ export default function Sidebar() {
   const [showTitleDropdown, setShowTitleDropdown] = useState(false);
   const [showTagDropdown, setShowTagDropdown] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [sidebarTab, setSidebarTab] = useState<'persons' | 'circles'>('persons');
 
   // 监听全局"添加人物"事件（来自 TopNav 移动端按钮）
   useEffect(() => {
@@ -73,7 +75,32 @@ export default function Sidebar() {
 
   return (
     <aside className="w-[280px] h-full bg-white border-r border-gray-200 flex flex-col shrink-0">
-      {/* 筛选区域 */}
+      {/* Tab 切换：人物 / 圈子 */}
+      <div className="flex border-b border-gray-100 shrink-0">
+        <button
+          onClick={() => setSidebarTab('persons')}
+          className={`flex-1 py-2.5 text-xs font-medium text-center transition-all duration-200 ${
+            sidebarTab === 'persons'
+              ? 'text-blue-600 border-b-2 border-blue-600'
+              : 'text-gray-400 hover:text-gray-600'
+          }`}
+        >
+          人物
+        </button>
+        <button
+          onClick={() => setSidebarTab('circles')}
+          className={`flex-1 py-2.5 text-xs font-medium text-center transition-all duration-200 ${
+            sidebarTab === 'circles'
+              ? 'text-blue-600 border-b-2 border-blue-600'
+              : 'text-gray-400 hover:text-gray-600'
+          }`}
+        >
+          圈子
+        </button>
+      </div>
+
+      {/* 筛选区域（仅人物 Tab） */}
+      {sidebarTab === 'persons' && (
       <div className="p-3 space-y-2 border-b border-gray-100">
         <div className="flex items-center gap-2">
           {/* 城市筛选 */}
@@ -219,8 +246,10 @@ export default function Sidebar() {
           </button>
         )}
       </div>
+      )}
 
       {/* 人物列表 */}
+      {sidebarTab === 'persons' && (
       <div className="flex-1 overflow-y-auto">
         {filteredPersons.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-400 px-4 text-center">
@@ -288,9 +317,17 @@ export default function Sidebar() {
           </div>
         )}
       </div>
+      )}
 
-      {/* 侧边栏底部添加按钮 */}
-      {filteredPersons.length > 0 && (
+      {/* 圈子列表 Tab */}
+      {sidebarTab === 'circles' && (
+        <div className="flex-1 overflow-y-auto p-3">
+          <CircleManager />
+        </div>
+      )}
+
+      {/* 侧边栏底部添加按钮（仅人物 Tab） */}
+      {sidebarTab === 'persons' && filteredPersons.length > 0 && (
         <div className="p-3 border-t border-gray-100">
           <button
             onClick={() => setShowAddModal(true)}
